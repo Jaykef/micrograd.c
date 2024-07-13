@@ -31,12 +31,12 @@ g = value_add(g, value_div(value_new(10.0), f));
 backward(g);
 
 double tol = 1e-4; 
-printf("g->data: %.6f, expected: 24.704100\n", g->data);
+printf("g->data: %.6f\n", g->data);
 
 backward(g);
 
-printf("a->grad: %.6f, expected: 138.833800\n", a->grad);
-printf("b->grad: %.6f, expected: 645.577300\n", b->grad);
+printf("a->grad: %.6f\n", a->grad);
+printf("b->grad: %.6f\n", b->grad);
 ```
 
 ## Train a neural net
