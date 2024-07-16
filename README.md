@@ -1,6 +1,10 @@
 # micrograd.c
 Port of Karpathy's <a href="https://github.com/karpathy/micrograd">migrograd</a> in pure C. Migrograd is a tiny scalar-valued autograd engine and a neural net library on top of it with PyTorch-like API.
 
+### Demo
+
+https://github.com/user-attachments/assets/58d50b6b-9ddb-43e8-b135-0102b9c46bd8
+
 ### Quick Start
 
 ```bash
@@ -50,9 +54,10 @@ make
 ```
 
 ## Test
+[test.c](https://github.com/Jaykef/micrograd.c/blob/main/test/test.c) performs test for all possible operations and sanity checks for both nn and engine.
 
 ```bash
 cd micrograd.c
 make
-./test
+./main
 ```
