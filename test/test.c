@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <math.h>
 #include <assert.h>
-#include "../micrograd.c/nn.c"
+#include "../micrograd.c/nn.h"
+#include "../micrograd.c/engine.h"
+#include "test.h"
 
 void test_sanity_check(void) {
     Value* x = value_new(-4.0);
