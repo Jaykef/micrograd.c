@@ -1,166 +1,183 @@
+#include "micrograd.c/nn.h"
+#include "micrograd.c/engine.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-#include <time.h>
-#include "nn.c"
+#include <string.h>
 
-#define NUM_SAMPLES 100
-#define NUM_FEATURES 2
+#define BATCH_SIZE 100
+#define INPUT_SIZE 2
+#define HIDDEN_SIZE 16
+#define OUTPUT_SIZE 1
+#define NUM_LAYERS 3
 
-typedef struct {
-    double x[NUM_FEATURES];
-    int y;
-} Sample;
-
-Sample* load_data(const char* filename) {
-    FILE* file = fopen(filename, "r");
-    if (file == NULL) {
-        printf("Error opening file.\n");
-        exit(1);
+void print_value(Value* v) {
+    if (v) {
+        printf("Value: data=%f, grad=%f\n", v->data, v->grad);
+    } else {
+        printf("Value is NULL\n");
     }
-
-    Sample* data = malloc(NUM_SAMPLES * sizeof(Sample));
-    if (data == NULL) {
-        printf("Memory allocation failed.\n");
-        exit(1);
-    }
-
-    char line[1024];
-    int i = 0;
-
-    // Skip header
-    fgets(line, sizeof(line), file);
-
-    while (fgets(line, sizeof(line), file) && i < NUM_SAMPLES) {
-        if (sscanf(line, "%lf,%lf,%d", &data[i].x[0], &data[i].x[1], &data[i].y) != 3) {
-            printf("Error reading line %d\n", i+1);
-            exit(1);
-        }
-        i++;
-    }
-
-    fclose(file);
-    printf("Loaded %d samples\n", i);
-    return data;
 }
 
-Value* loss(MLP* model, Sample* data, int batch_size) {
-    Value* total_loss = value_new(0);
-    int correct = 0;
-
-    for (int i = 0; i < batch_size; i++) {
-        Value* inputs[NUM_FEATURES];
-        for (int j = 0; j < NUM_FEATURES; j++) {
-            inputs[j] = value_new(data[i].x[j]);
-        }
-
-        Value* score = mlp_call(model, inputs);
-        if (score == NULL) {
-            printf("Error: mlp_call returned NULL for sample %d\n", i);
-            exit(1);
-        }
-
-        Value* y = value_new(data[i].y * 2.0 - 1.0);
-        Value* loss = value_relu(value_add(value_new(1), value_mul(value_new(-1), value_mul(y, score))));
-        total_loss = value_add(total_loss, loss);
-
-        if ((data[i].y == 1 && score->data > 0) || (data[i].y == 0 && score->data <= 0)) {
-            correct++;
-        }
-
-        for (int j = 0; j < NUM_FEATURES; j++) {
-            value_free(inputs[j]);
-        }
-        value_free(y);
-        value_free(score);
-        value_free(loss);
-    }
-
-    total_loss = value_mul(total_loss, value_new(1.0 / batch_size));
-
-    printf("Loss: %f, Accuracy: %f%%\n", total_loss->data, (double)correct / batch_size * 100);
-
-    return total_loss;
-}
-
-void zero_grad(MLP* model) {
+void print_model_params(MLP* model) {
     for (int i = 0; i < model->nlayers; i++) {
         for (int j = 0; j < model->layers[i]->nout; j++) {
-            for (int k = 0; k < model->layers[i]->nin; k++) {
-                model->layers[i]->neurons[j]->w[k]->grad = 0;
+            Neuron* neuron = model->layers[i]->neurons[j];
+            printf("Layer %d, Neuron %d:\n", i, j);
+            for (int k = 0; k < neuron->nin; k++) {
+                printf("  w[%d]: data=%f, grad=%f\n", k, neuron->w[k]->data, neuron->w[k]->grad);
             }
-            model->layers[i]->neurons[j]->b->grad = 0;
+            printf("  b: data=%f, grad=%f\n", neuron->b->data, neuron->b->grad);
         }
     }
-}
-
-void update_parameters(MLP* model, double learning_rate) {
-    for (int i = 0; i < model->nlayers; i++) {
-        for (int j = 0; j < model->layers[i]->nout; j++) {
-            for (int k = 0; k < model->layers[i]->nin; k++) {
-                model->layers[i]->neurons[j]->w[k]->data -= learning_rate * model->layers[i]->neurons[j]->w[k]->grad;
-            }
-            model->layers[i]->neurons[j]->b->data -= learning_rate * model->layers[i]->neurons[j]->b->grad;
-        }
-    }
-}
-
-void free_mlp(MLP* model) {
-    for (int i = 0; i < model->nlayers; i++) {
-        for (int j = 0; j < model->layers[i]->nout; j++) {
-            for (int k = 0; k < model->layers[i]->nin; k++) {
-                value_free(model->layers[i]->neurons[j]->w[k]);
-            }
-            value_free(model->layers[i]->neurons[j]->b);
-            free(model->layers[i]->neurons[j]->w);
-            free(model->layers[i]->neurons[j]);
-        }
-        free(model->layers[i]->neurons);
-        free(model->layers[i]);
-    }
-    free(model->layers);
-    free(model);
 }
 
 int main(void) {
-    srand(time(NULL));
-
-    Sample* data = load_data("data/make_moons.csv");
-
-    int nouts[] = {16, 16, 1};
-    MLP* model = mlp_new(NUM_FEATURES, nouts, 3);
-    if (model == NULL) {
-        printf("Error: Failed to create MLP\n");
-        exit(1);
+    // Load data from make_moons.csv
+    double X[BATCH_SIZE][INPUT_SIZE];
+    int y[BATCH_SIZE];
+    FILE *fp = fopen("data/make_moons.csv", "r");
+    if (fp == NULL) {
+        perror("Error opening file");
+        return 1;
     }
-
-    int num_epochs = 100; 
-    int batch_size = NUM_SAMPLES;
-
-    for (int epoch = 0; epoch < num_epochs; epoch++) {
-        printf("Starting epoch %d\n", epoch);
-        
-        Value* total_loss = loss(model, data, batch_size);
-        if (total_loss == NULL) {
-            printf("Error: loss function returned NULL\n");
-            exit(1);
+    
+    char buffer[1024];
+    fgets(buffer, sizeof(buffer), fp);
+    
+    for (int i = 0; i < BATCH_SIZE; i++) {
+        if (fscanf(fp, "%lf,%lf,%d", &X[i][0], &X[i][1], &y[i]) != 3) {
+            fprintf(stderr, "Error reading line %d from file\n", i+1);
+            fclose(fp);
+            return 1;
         }
-        
-        zero_grad(model);
-        backward(total_loss);
-        
-        double learning_rate = 1.0 - 0.9 * epoch / num_epochs;
-        update_parameters(model, learning_rate);
+    }
+    fclose(fp);
 
-        value_free(total_loss);
-        
-        printf("Epoch %d completed\n", epoch);
+    printf("Data loaded successfully\n");
+
+    // Initialize model
+    int nouts[NUM_LAYERS - 1] = {HIDDEN_SIZE, HIDDEN_SIZE, OUTPUT_SIZE};
+    MLP* model = mlp_new(INPUT_SIZE, nouts, NUM_LAYERS - 1);
+    if (model == NULL) {
+        fprintf(stderr, "Failed to create MLP\n");
+        return 1;
     }
 
-    // Free memory
-    free(data);
-    free_mlp(model);
+    printf("Model initialized\n");
 
-    printf("Training completed successfully\n");
+    // Training loop
+    for (int epoch = 0; epoch < 100; epoch++) {
+        // Define loss function
+        Value* loss_value = value_new(0);
+        for (int i = 0; i < BATCH_SIZE; i++) {
+            Value** inputs = malloc(INPUT_SIZE * sizeof(Value*));
+            if (inputs == NULL) {
+                fprintf(stderr, "Memory allocation failed for inputs\n");
+                mlp_free(model);
+                value_free(loss_value);
+                return 1;
+            }
+            for (int j = 0; j < INPUT_SIZE; j++) {
+                inputs[j] = value_new(X[i][j]);
+            }
+            Value* output = mlp_call(model, inputs);
+            if (output == NULL) {
+                fprintf(stderr, "mlp_call returned NULL\n");
+                mlp_free(model);
+                value_free(loss_value);
+                for (int j = 0; j < INPUT_SIZE; j++) {
+                    value_free(inputs[j]);
+                }
+                free(inputs);
+                return 1;
+            }
+            Value* label = value_new(y[i] == 0 ? -1 : 1);
+            Value* score = value_mul(output, label);
+            Value* loss = value_add(value_relu(value_add(score, value_new(-1))), value_new(1e-4));
+            Value* temp = value_add(loss_value, loss);
+            value_free(loss_value);
+            loss_value = temp;
+            
+            for (int j = 0; j < INPUT_SIZE; j++) {
+                value_free(inputs[j]);
+            }
+            free(inputs);
+            value_free(label);
+            value_free(score);
+            value_free(output);
+            value_free(loss);
+        }
+        Value* batch_loss = value_div(loss_value, value_new(BATCH_SIZE));
+        value_free(loss_value);
+        loss_value = batch_loss;
+
+        printf("Loss calculated for epoch %d\n", epoch);
+        print_value(loss_value);
+
+        // Backward pass
+        backward(loss_value);
+
+        printf("Backward pass completed for epoch %d\n", epoch);
+
+        // Update weights
+        double learning_rate = 1.0 - 0.9 * epoch / 100.0;
+        for (int i = 0; i < model->nlayers; i++) {
+            for (int j = 0; j < model->layers[i]->nout; j++) {
+                Neuron* neuron = model->layers[i]->neurons[j];
+                for (int k = 0; k < neuron->nin; k++) {
+                    neuron->w[k]->data -= learning_rate * neuron->w[k]->grad;
+                    neuron->w[k]->grad = 0;  // Reset gradient
+                }
+                neuron->b->data -= learning_rate * neuron->b->grad;
+                neuron->b->grad = 0;  // Reset gradient
+            }
+        }
+
+        printf("Weights updated for epoch %d\n", epoch);
+
+        // Calculate accuracy
+        int correct = 0;
+        for (int i = 0; i < BATCH_SIZE; i++) {
+            Value** inputs = malloc(INPUT_SIZE * sizeof(Value*));
+            if (inputs == NULL) {
+                fprintf(stderr, "Memory allocation failed for inputs\n");
+                mlp_free(model);
+                value_free(loss_value);
+                return 1;
+            }
+            for (int j = 0; j < INPUT_SIZE; j++) {
+                inputs[j] = value_new(X[i][j]);
+            }
+            Value* output = mlp_call(model, inputs);
+            if (output == NULL) {
+                fprintf(stderr, "mlp_call returned NULL during accuracy calculation\n");
+                mlp_free(model);
+                value_free(loss_value);
+                for (int j = 0; j < INPUT_SIZE; j++) {
+                    value_free(inputs[j]);
+                }
+                free(inputs);
+                return 1;
+            }
+            int pred = output->data > 0 ? 1 : 0;
+            if (pred == y[i]) {
+                correct++;
+            }
+            for (int j = 0; j < INPUT_SIZE; j++) {
+                value_free(inputs[j]);
+            }
+            free(inputs);
+            value_free(output);
+        }
+        double accuracy = (double)correct / BATCH_SIZE;
+
+        printf("Epoch %d, loss: %f, accuracy: %f\n", epoch, loss_value->data, accuracy);
+
+        value_free(loss_value);
+    }
+
+    // Free resources
+    mlp_free(model);
+
     return 0;
 }
