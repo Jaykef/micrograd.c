@@ -91,3 +91,54 @@ void mlp_free(MLP* m) {
     free(m->layers);
     free(m);
 }
+
+int mlp_parameters_count(MLP* m) {
+    int count = 0;
+    for (int i = 0; i < m->nlayers; i++) {
+        for (int j = 0; j < m->layers[i]->nout; j++) {
+            count += m->layers[i]->neurons[j]->nin + 1;  // weights + bias
+        }
+    }
+    return count;
+}
+
+Value** mlp_parameters(MLP* m) {
+    int count = mlp_parameters_count(m);
+    Value** params = malloc(count * sizeof(Value*));
+    int index = 0;
+    for (int i = 0; i < m->nlayers; i++) {
+        for (int j = 0; j < m->layers[i]->nout; j++) {
+            Neuron* n = m->layers[i]->neurons[j];
+            for (int k = 0; k < n->nin; k++) {
+                params[index++] = n->w[k];
+            }
+            params[index++] = n->b;
+        }
+    }
+    return params;
+}
+
+void mlp_zero_grad(MLP* m) {
+    for (int i = 0; i < m->nlayers; i++) {
+        for (int j = 0; j < m->layers[i]->nout; j++) {
+            Neuron* n = m->layers[i]->neurons[j];
+            for (int k = 0; k < n->nin; k++) {
+                n->w[k]->grad = 0;
+            }
+            n->b->grad = 0;
+        }
+    }
+}
+
+void mlp_update(MLP* m, double learning_rate) {
+    for (int i = 0; i < m->nlayers; i++) {
+        for (int j = 0; j < m->layers[i]->nout; j++) {
+            Neuron* n = m->layers[i]->neurons[j];
+            for (int k = 0; k < n->nin; k++) {
+                n->w[k]->data -= learning_rate * n->w[k]->grad;
+            }
+            n->b->data -= learning_rate * n->b->grad;
+        }
+    }
+}
+
