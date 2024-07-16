@@ -4,7 +4,7 @@
 #include "micrograd.c/nn.h"
 #include "micrograd.c/engine.h"
 
-#define N_SAMPLES 200
+#define N_SAMPLES 100
 #define HIDDEN_SIZE 16
 #define OUTPUT_SIZE 1
 
@@ -101,7 +101,7 @@ int main(void) {
     MLP* model = mlp_new(2, &layer_sizes[1], 3);
 
     // Training loop
-    for (int epoch = 0; epoch < 100; epoch++) {
+    for (int epoch = 0; epoch < 200; epoch++) {
         double accuracy = 0.0;
         double avg_loss = loss(model, X, y, &accuracy);
 
