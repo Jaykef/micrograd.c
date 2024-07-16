@@ -1,5 +1,5 @@
 # micrograd.c
-Port of Karpathy's <a href="https://github.com/karpathy/micrograd">migrograd</a> in pure C. Migrograd is a tiny scalar-valued autograd engine and a neural net library on top of it with PyTorch-like API.
+Port of Karpathy's <a href="https://github.com/karpathy/micrograd">migrograd</a> in pure C. Micrograd is a tiny scalar-valued autograd engine and a neural net library on top of it with PyTorch-like API.
 
 ### Demo
 
