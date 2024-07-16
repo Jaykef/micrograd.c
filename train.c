@@ -1,8 +1,8 @@
-#include "micrograd.c/nn.h"
-#include "micrograd.c/engine.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "micrograd.c/nn.h"
+#include "micrograd.c/engine.h"
 
 #define N_SAMPLES 100
 #define INPUT_SIZE 2
@@ -32,7 +32,6 @@ void read_data(const char* filename, double X[N_SAMPLES][INPUT_SIZE], int y[N_SA
 int main(void) {
     srand(time(NULL));
 
-    // Read data from CSV file
     double X[N_SAMPLES][INPUT_SIZE];
     int y[N_SAMPLES];
     read_data("data/make_moons.csv", X, y);
@@ -69,7 +68,7 @@ int main(void) {
             backward(loss);
 
             // Update weights
-            double learning_rate = 0.01;
+            double learning_rate = 0.001; 
             mlp_update(model, learning_rate);
 
             // Free memory
@@ -80,11 +79,12 @@ int main(void) {
             value_free(target);
             value_free(loss);
         }
-        
+
         double avg_loss = total_loss / N_SAMPLES;
         double accuracy = (double)correct / N_SAMPLES * 100.0;
         printf("step %d loss %f, accuracy %f%%\n", epoch, avg_loss, accuracy);
 
+        // reset grad for next epoch
         mlp_zero_grad(model);
     }
 
