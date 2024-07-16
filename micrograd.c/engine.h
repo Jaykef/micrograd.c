@@ -8,6 +8,7 @@ typedef struct Value {
     struct Value** prev;
     int prev_count;
     char* op;
+    int id;
 } Value;
 typedef void (*BackwardFunction)(Value*);
 
