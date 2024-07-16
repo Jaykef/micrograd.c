@@ -7,6 +7,7 @@ Port of Karpathy's <a href="https://github.com/karpathy/micrograd">migrograd</a>
 cd micrograd.c
 make
 ./main
+./train
 ```
 
 ### Example Usage
