@@ -3,38 +3,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <math.h>
 
 #define N_SAMPLES 100
 #define INPUT_SIZE 2
 #define HIDDEN_SIZE 16
 #define OUTPUT_SIZE 1
 
-void make_moons(double X[N_SAMPLES][INPUT_SIZE], int y[N_SAMPLES]) {
-    for (int i = 0; i < N_SAMPLES; i++) {
-        double r = (double)i / N_SAMPLES;
-        double t = r * 3.14159 * 2;
-        if (i % 2 == 0) {
-            X[i][0] = cos(t);
-            X[i][1] = sin(t);
-            y[i] = 1;
-        } else {
-            X[i][0] = 1 - cos(t);
-            X[i][1] = 0.5 - sin(t);
-            y[i] = 0;
-        }
-        // Add some noise
-        X[i][0] += (double)rand() / RAND_MAX * 0.1 - 0.05;
-        X[i][1] += (double)rand() / RAND_MAX * 0.1 - 0.05;
+void read_data(const char* filename, double X[N_SAMPLES][INPUT_SIZE], int y[N_SAMPLES]) {
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Error opening file: %s\n", filename);
+        exit(1);
     }
+
+    char line[1024];
+    fgets(line, sizeof(line), file);  // Skip header
+
+    for (int i = 0; i < N_SAMPLES; i++) {
+        if (fscanf(file, "%lf,%lf,%d", &X[i][0], &X[i][1], &y[i]) != 3) {
+            printf("Error reading line %d\n", i + 1);
+            exit(1);
+        }
+    }
+
+    fclose(file);
 }
 
 int main(void) {
     srand(time(NULL));
 
+    // Read data from CSV file
     double X[N_SAMPLES][INPUT_SIZE];
     int y[N_SAMPLES];
-    make_moons(X, y);
+    read_data("data/make_moons.csv", X, y);
 
     // Initialize model
     int layer_sizes[] = {INPUT_SIZE, HIDDEN_SIZE, HIDDEN_SIZE, OUTPUT_SIZE};
@@ -68,7 +69,7 @@ int main(void) {
             backward(loss);
 
             // Update weights
-            double learning_rate = 0.05;
+            double learning_rate = 0.01;
             mlp_update(model, learning_rate);
 
             // Free memory
@@ -79,13 +80,11 @@ int main(void) {
             value_free(target);
             value_free(loss);
         }
-
-        // Print progress
+        
         double avg_loss = total_loss / N_SAMPLES;
         double accuracy = (double)correct / N_SAMPLES * 100.0;
         printf("step %d loss %f, accuracy %f%%\n", epoch, avg_loss, accuracy);
 
-        // Zero out gradients for next epoch
         mlp_zero_grad(model);
     }
 
