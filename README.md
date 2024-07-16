@@ -17,9 +17,9 @@ make
 ### Example Usage
 
 ```c
-#include <stdio.h>
-#include <math.h>
-#include "../micrograd.c/nn.c"
+#include "../micrograd.c/nn.h"
+#include "../micrograd.c/engine.h"
+#include "test.h"
 
 Value* a = value_new(-4.0);
 Value* b = value_new(2.0);
