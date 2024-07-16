@@ -1,5 +1,7 @@
 #include <stdio.h>
-#include "test/test.c"
+#include "test/test.h"
+#include "micrograd.c/nn.h"
+#include "micrograd.c/engine.h"
 
 int main(void) {
     test_sanity_check();
