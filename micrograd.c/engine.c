@@ -6,12 +6,16 @@
 
 Value* value_new(double data) {
     Value* v = malloc(sizeof(Value));
+    if (v == NULL) {
+        fprintf(stderr, "Failed to allocate memory for Value\n");
+        return NULL;
+    }
     v->data = data;
     v->grad = 0.0;
-    v->backward = NULL;
+    v->backward = NULL; 
     v->prev = NULL;
     v->prev_count = 0;
-    v->op = strdup("");
+    v->op = NULL;
     return v;
 }
 
@@ -36,6 +40,7 @@ void value_add_backward(Value* v) {
     v->prev[0]->grad += v->grad;
     v->prev[1]->grad += v->grad;
 }
+
 
 Value* value_mul(Value* a, Value* b) {
     Value* out = value_new(a->data * b->data);
@@ -72,7 +77,7 @@ void value_pow_backward(Value* v) {
 }
 
 Value* value_relu(Value* a) {
-    Value* out = value_new(a->data > 0? a->data : 0);
+    Value* out = value_new(a->data > 0 ? a->data : 0);
     out->prev = malloc(sizeof(Value*));
     out->prev[0] = a;
     out->prev_count = 1;
@@ -82,7 +87,7 @@ Value* value_relu(Value* a) {
 }
 
 void value_relu_backward(Value* v) {
-    v->prev[0]->grad += (v->prev[0]->data > 0)? v->grad : 0;
+    v->prev[0]->grad += (v->prev[0]->data > 0) ? v->grad : 0;
 }
 
 Value* value_neg(Value* a) {
@@ -98,6 +103,7 @@ Value* value_div(Value* a, Value* b) {
 }
 
 void build_topo(Value* v, Value*** sorted, int* size, int* capacity) {
+    
     for (int i = 0; i < v->prev_count; i++) {
         if (v->prev[i]->backward) {
             build_topo(v->prev[i], sorted, size, capacity);
@@ -117,18 +123,18 @@ void build_topo(Value* v, Value*** sorted, int* size, int* capacity) {
 }
 
 void backward(Value* v) {
-    v->grad = 1.0;
     int size = 0;
     int capacity = 10;
-    Value** sorted = malloc(capacity * sizeof(Value*));
-    
-    build_topo(v, &sorted, &size, &capacity);
-    
+    Value** topo = malloc(capacity * sizeof(Value*));
+    build_topo(v, &topo, &size, &capacity);
+
+    v->grad = 1;
     for (int i = size - 1; i >= 0; i--) {
-        if (sorted[i]->backward) {
-            sorted[i]->backward(sorted[i]);
+        if (topo[i]->backward) {
+            topo[i]->backward(topo[i]);
         }
     }
-    
-    free(sorted);
+
+    free(topo);
 }
+
