@@ -61,3 +61,6 @@ cd micrograd.c
 make
 ./main
 ```
+
+## License
+MIT
