@@ -1,6 +1,10 @@
 # micrograd.c
 Port of Karpathy's <a href="https://github.com/karpathy/micrograd">migrograd</a> in pure C. Micrograd is a tiny scalar-valued autograd engine and a neural net library on top of it with PyTorch-like API.
 
+Made some improvements:
+- Achieved 100% accuracy on 100 samples of make_moons under 100 epochs (AAA😊).
+- Better memory alloc in gradient accumulation leading to lightspeed faster than Karpathy’s 🎉
+
 ### Demo
 
 https://github.com/user-attachments/assets/58d50b6b-9ddb-43e8-b135-0102b9c46bd8
