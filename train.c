@@ -32,19 +32,19 @@ double loss(MLP* model, double X[N_SAMPLES][2], int y[N_SAMPLES], double* accura
     double total_loss = 0.0;
     int correct = 0;
     
-    mlp_zero_grad(model);
+    model->base.zero_grad((Module*)model);
 
     for (int i = 0; i < N_SAMPLES; i++) {
         // Forward pass
         Value* inputs[2];
         for (int j = 0; j < 2; j++) {
-            inputs[j] = value_new(X[i][j]);
+            inputs[j] = value_new(X[i][j], NULL, 0, "");
         }
         Value* output = mlp_call(model, inputs);
         
         // Compute margin loss
-        Value* target = value_new(y[i] * 2.0 - 1.0);  // Convert 0/1 to -1/+1
-        Value* margin_loss = value_relu(value_add(value_neg(value_mul(target, output)), value_new(1.0)));
+        Value* target = value_new(y[i] * 2.0 - 1.0, NULL, 0, "");  // Convert 0/1 to -1/+1
+        Value* margin_loss = value_relu(value_add(value_neg(value_mul(target, output)), value_new(1.0, NULL, 0, "")));
         total_loss += margin_loss->data;
 
         // Accumulate gradients
@@ -67,8 +67,8 @@ double loss(MLP* model, double X[N_SAMPLES][2], int y[N_SAMPLES], double* accura
     // Compute regularization loss and add to total loss
     double reg_loss = 0.0;
     double alpha = 1e-4;
-    Value** params = mlp_parameters(model);
-    int param_count = mlp_parameters_count(model);
+    Value** params = model->base.parameters((Module*)model);
+    int param_count = model->base.parameters_count((Module*)model);
     for (int p = 0; p < param_count; p++) {
         reg_loss += params[p]->data * params[p]->data;
     }
@@ -87,11 +87,10 @@ double loss(MLP* model, double X[N_SAMPLES][2], int y[N_SAMPLES], double* accura
     return total_loss;
 }
 
-
 int main(void) {
     srand(time(NULL));
 
-    // laod data
+    // load data
     double X[N_SAMPLES][2];
     int y[N_SAMPLES];
     load_data("data/make_moons.csv", X, y);
@@ -101,19 +100,24 @@ int main(void) {
     MLP* model = mlp_new(2, &layer_sizes[1], 3);
 
     // Training loop
-    for (int epoch = 0; epoch < 200; epoch++) {
+    for (int epoch = 0; epoch < 100; epoch++) {
         double accuracy = 0.0;
         double avg_loss = loss(model, X, y, &accuracy);
 
         // Update weights
         double learning_rate = 0.01;
-        mlp_update(model, learning_rate);
+        Value** params = model->base.parameters((Module*)model);
+        int param_count = model->base.parameters_count((Module*)model);
+        for (int i = 0; i < param_count; i++) {
+            params[i]->data -= learning_rate * params[i]->grad;
+        }
+        free(params);
 
         // Print progress
         printf("step %d loss %f, accuracy %f%%\n", epoch, avg_loss, accuracy);
 
         // Zero out gradients for next epoch
-        mlp_zero_grad(model);
+        model->base.zero_grad((Module*)model);
     }
 
     // Free model

@@ -1,18 +1,17 @@
 #ifndef ENGINE_H
 #define ENGINE_H
 
-typedef struct Value {
+typedef struct Value { 
+    // Stores a single scalar value and its gradient 
     double data;
     double grad;
-    void (*backward)(struct Value* v);
-    struct Value** prev;
-    int prev_count;
-    char* op;
-    int id;
+    void (*_backward)(struct Value* v);
+    struct Value** _prev;
+    int _prev_count;
+    char* _op;
 } Value;
-typedef void (*BackwardFunction)(Value*);
 
-Value* value_new(double data);
+Value* value_new(double data, Value** children, int num_children, const char* op);
 void value_free(Value* v);
 Value* value_add(Value* a, Value* b);
 void value_add_backward(Value* v);
